@@ -1,0 +1,14 @@
+.dart_tool/
+build/
+.packages
+.pub-cache/
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+.vscode/
+.idea/
+*.log
+*.exe
+*.jar
+*.zip
+*.mp4

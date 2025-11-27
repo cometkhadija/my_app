@@ -1,82 +1,103 @@
-import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'firebase_options.dart'; // CLI-generated
+
 
 import 'screens/auth/login_screen.dart';
-import 'web/firebase_config.dart'; // lib/web/firebase_config.dart theke
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 👇 Web vs Mobile alada handle
-  if (kIsWeb) {
-    await Firebase.initializeApp(
-      options: webFirebaseOptions, // web er config
-    );
-  } else {
-    await Firebase.initializeApp(); // android/ios er jonno (google-services.json use korbe)
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+  } on FirebaseException catch (e) {
+    if (e.code != 'duplicate-app') {
+      rethrow; // অন্য কোনো error হলে crash করবে
+    }
+    // duplicate-app হলে ignore করবে
   }
 
   runApp(const MyApp());
 }
 
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      title: 'Bari Theke Dure',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.deepPurple,
-        useMaterial3: true,
-      ),
-      home: const LoginScreen(),
+      theme: ThemeData(primarySwatch: Colors.deepPurple, useMaterial3: true),
+      home: const AuthChecker(),
     );
   }
 }
 
-// ৫টা ট্যাবের মেইন স্ক্রিন
+class AuthChecker extends StatelessWidget {
+  const AuthChecker({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        // এই লাইনটা যোগ কর — এটাই ম্যাজিক
+        if (snapshot.connectionState == ConnectionState.active) {
+          final user = snapshot.data;
+          if (user != null) {
+            return const MainScreen();           // লগইন হলে সরাসরি হোম
+          } else {
+            return const LoginScreen();          // লগআউট থাকলে লগইন স্ক্রিন
+          }
+        }
+
+        // লোডিং এর সময় সার্কুলার দেখাবে
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      },
+    );
+  }
+}
+
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
-
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int currentIndex = 0;
-
-  final List<Widget> pages = [
-    const Center(child: Text("Home", style: TextStyle(fontSize: 50, fontWeight: FontWeight.bold))),
-    const Center(child: Text("Mood Tracker", style: TextStyle(fontSize: 45))),
-    const Center(child: Text("Expenses", style: TextStyle(fontSize: 50, fontWeight: FontWeight.bold))),
-    const Center(child: Text("Grooming", style: TextStyle(fontSize: 50, fontWeight: FontWeight.bold))),
-    const Center(child: Text("Profile", style: TextStyle(fontSize: 50, fontWeight: FontWeight.bold))),
+  int i = 0;
+  final pages = [
+    const Center(child: Text("Home", style: TextStyle(fontSize: 60))),
+    const Center(child: Text("Mood", style: TextStyle(fontSize: 60))),
+    const Center(child: Text("Expenses", style: TextStyle(fontSize: 60))),
+    const Center(child: Text("Grooming", style: TextStyle(fontSize: 60))),
+    const Center(child: Text("Profile", style: TextStyle(fontSize: 60))),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: pages[currentIndex],
+      body: pages[i],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        currentIndex: currentIndex,
+        currentIndex: i,
         selectedItemColor: Colors.deepPurple,
-        unselectedItemColor: Colors.grey,
-        onTap: (i) => setState(() => currentIndex = i),
+        onTap: (x) => setState(() => i = x),
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: "Home"),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
           BottomNavigationBarItem(icon: Icon(Icons.mood), label: "Mood"),
-          BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet_outlined), label: "Expenses"),
-          BottomNavigationBarItem(icon: Icon(Icons.face_retouching_natural), label: "Grooming"),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: "Profile"),
+          BottomNavigationBarItem(icon: Icon(Icons.wallet), label: "Expenses"),
+          BottomNavigationBarItem(icon: Icon(Icons.face), label: "Grooming"),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
       ),
     );
   }
 }
-
-

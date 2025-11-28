@@ -1,48 +1,50 @@
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+// lib/services/expense_service.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/expense_model.dart';
 
 class ExpenseService {
-  static const String _key = 'expenses';
-  static const String _budgetKey = 'monthly_budget';
+  static final _firestore = FirebaseFirestore.instance;
+  static final _user = FirebaseAuth.instance.currentUser;
+
+  static CollectionReference get _collection => _firestore
+      .collection('users')
+      .doc(_user?.uid)
+      .collection('expenses');
 
   static Future<List<Expense>> getExpenses() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? data = prefs.getString(_key);
-    if (data == null) return [];
-    final List jsonList = json.decode(data);
-    return jsonList.map((e) => Expense.fromJson(e)).toList();
+    if (_user == null) return [];
+    final snapshot = await _collection.orderBy('date', descending: true).get();
+    return snapshot.docs.map((doc) {
+  final data = doc.data() as Map<String, dynamic>;
+  final expense = Expense.fromJson(data);
+  return expense.copyWith(id: doc.id); // এটাই সঠিক উপায়
+}).toList();
   }
 
   static Future<void> addExpense(Expense expense) async {
-    final expenses = await getExpenses();
-    expenses.add(expense);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, json.encode(expenses.map((e) => e.toJson()).toList()));
+    if (_user == null) return;
+    await _collection.add(expense.toJson());
   }
 
-  static Future<void> updateExpense(Expense updated) async {
-    final expenses = await getExpenses();
-    final index = expenses.indexWhere((e) => e.id == updated.id);
-    if (index != -1) expenses[index] = updated;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, json.encode(expenses.map((e) => e.toJson()).toList()));
+  static Future<void> updateExpense(Expense expense) async {
+    if (_user == null) return;
+    await _collection.doc(expense.id).update(expense.toJson());
   }
 
   static Future<void> deleteExpense(String id) async {
-    final expenses = await getExpenses();
-    expenses.removeWhere((e) => e.id == id);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, json.encode(expenses.map((e) => e.toJson()).toList()));
-  }
-
-  static Future<void> setBudget(double budget) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble(_budgetKey, budget);
+    if (_user == null) return;
+    await _collection.doc(id).delete();
   }
 
   static Future<double> getBudget() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getDouble(_budgetKey) ?? 30000;
+    if (_user == null) return 30000;
+    final doc = await _firestore.collection('users').doc(_user!.uid).get();
+    return doc['monthlyBudget']?.toDouble() ?? 30000;
+  }
+
+  static Future<void> setBudget(double budget) async {
+    if (_user == null) return;
+    await _firestore.collection('users').doc(_user!.uid).set({'monthlyBudget': budget}, SetOptions(merge: true));
   }
 }

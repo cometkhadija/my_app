@@ -1,5 +1,5 @@
 class Expense {
-  final String id;
+  late final String id;
   final String category;
   final double amount;
   final DateTime date;
@@ -24,4 +24,6 @@ class Expense {
         amount: json['amount'],
         date: DateTime.parse(json['date']),
       );
+
+  Future<List<Expense>> copyWith({required String id}) {}
 }

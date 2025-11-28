@@ -15,11 +15,7 @@ class ExpenseService {
   static Future<List<Expense>> getExpenses() async {
     if (_user == null) return [];
     final snapshot = await _collection.orderBy('date', descending: true).get();
-    return snapshot.docs.map((doc) {
-  final data = doc.data() as Map<String, dynamic>;
-  final expense = Expense.fromJson(data);
-  return expense.copyWith(id: doc.id); // এটাই সঠিক উপায়
-}).toList();
+    return snapshot.docs.map((doc) => Expense.fromJson(doc.data() as Map<String, dynamic>)..id = doc.id).toList();
   }
 
   static Future<void> addExpense(Expense expense) async {
